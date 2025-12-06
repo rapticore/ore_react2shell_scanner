@@ -1,0 +1,11 @@
+# RSC Vulnerability Scanner - Dependencies
+
+# Required
+aiohttp>=3.8.0
+
+# For HTML report generation (recommended)
+jinja2>=3.0.0
+
+# For testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

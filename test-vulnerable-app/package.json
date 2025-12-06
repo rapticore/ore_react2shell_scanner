@@ -1,0 +1,24 @@
+{
+  "name": "vulnerable-rsc-test-app",
+  "version": "1.0.0",
+  "description": "Test application with intentionally vulnerable React Server Components for security scanner testing",
+  "private": true,
+  "scripts": {
+    "dev": "NODE_OPTIONS='--no-warnings' next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "15.0.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.0.0"
+  },
+  "SECURITY_WARNING": "THIS APP CONTAINS INTENTIONALLY VULNERABLE CODE (React 19.0.0, Next.js 15.0.3) FOR TESTING CVE-2025-55182. DO NOT DEPLOY TO PRODUCTION."
+}
