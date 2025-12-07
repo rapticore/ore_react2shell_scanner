@@ -1,4 +1,4 @@
-# Rapticore Security Research - React2Shell Scanner
+git # Rapticore Security Research - React2Shell Scanner
 
 A security assessment toolkit developed by the **Rapticore Security Research Team** for detecting React Server Components (RSC) vulnerabilities including **CVE-2025-55182** (React2Shell) - a critical Remote Code Execution vulnerability.
 
@@ -145,7 +145,7 @@ results/
 | `domains` | Domain(s) to scan |
 | `-f, --file` | File containing domains (one per line) |
 | `-c, --concurrency` | Concurrent requests (default: 20) |
-| `-t, --timeout` | Request timeout in seconds (default: 10) |
+| `-t, --timeout` | Request timeout in seconds (default: 25) |
 | `--deep` | Deep scanning with extended paths |
 | `--verify` | Active verification - sends RCE PoC payload |
 | `--safe-check` | Safe side-channel verification |
@@ -168,6 +168,13 @@ results/
 | `--format` | Output format: html, json, csv, txt, all |
 
 ## Detection Methodology
+
+### Improved Verification Logic (v1.1)
+
+The scanner implements robust verification logic to handle unstable servers:
+- **Server Crash Detection**: Automatically identifies HTTP 500 errors with specific RSC stack traces as confirmed vulnerabilities.
+- **Connection Drops**: Flags immediate server disconnects during payload execution as "Likely Vulnerable" (indicating process crash).
+- **Safe Payload**: Uses a specialized non-destructive JSON payload to trigger side-channel errors without executing system commands.
 
 ### RSC Endpoint Detection
 

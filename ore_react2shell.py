@@ -420,7 +420,7 @@ class AssessmentEngine:
     def __init__(
             self,
             concurrency: int = 30,
-            timeout: float = 10.0,
+            timeout: float = 25.0,
             verbose: bool = False,
             deep_scan: bool = False,
             verify_mode: bool = False,
@@ -976,8 +976,8 @@ class ReportGenerator:
                         <span class="badge badge-info">UNKNOWN</span>
                         {% endif %}
                     </td>
-                    <td>{{ '✅' if r.is_nextjs else '—' }}</td>
-                    <td>{{ r.rsc_endpoints|length if r.rsc_endpoints else '—' }}</td>
+                    <td>{{ '✅' if r.is_nextjs else 'No' }}</td>
+                    <td>{{ r.rsc_endpoints|length if r.rsc_endpoints else 'No' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -1338,12 +1338,7 @@ Requirements:
         default=30,
         help="Concurrent requests (default: 30)",
     )
-    parser.add_argument(
-        "-t", "--timeout",
-        type=float,
-        default=10.0,
-        help="Request timeout in seconds (default: 10)",
-    )
+    parser.add_argument("--timeout", type=float, default=25.0, help="Request timeout (default: 25)")
     parser.add_argument(
         "-o", "--output",
         default="results",
