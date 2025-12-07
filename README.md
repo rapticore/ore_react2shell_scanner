@@ -219,6 +219,7 @@ The Rapticore Security Research Team assumes no liability for misuse.
 ## Acknowledgments
 
 - **Rapticore Security Research Team** - Tool development and maintenance
+- **Lachlan Davidson** - Original PoC and vulnerability research (CVE-2025-55182)
 - **Assetnote** - Original CVE-2025-55182 (React2Shell) vulnerability research
 - **ProjectDiscovery** - [subfinder](https://github.com/projectdiscovery/subfinder) subdomain enumeration tool
 - React Security Team for responsible disclosure coordination
