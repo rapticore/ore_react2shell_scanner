@@ -1,4 +1,4 @@
-git # Rapticore Security Research - React2Shell Scanner
+# Rapticore Security Research - React2Shell Scanner
 
 A security assessment toolkit developed by the **Rapticore Security Research Team** for detecting React Server Components (RSC) vulnerabilities including **CVE-2025-55182** (React2Shell) - a critical Remote Code Execution vulnerability.
 
